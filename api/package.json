@@ -1,0 +1,14 @@
+{
+  "name": "task-api",
+  "version": "1.0.0",
+  "description": "Task Management REST API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "pg": "^8.13.0"
+  }
+}
