@@ -28,7 +28,7 @@ Node.js + Express API :3000 (المنطق البرمجي)
 PostgreSQL :5432 (قاعدة البيانات)
        |
        v
-Docker Volume (db-data) (لحفظ البيانات بشكل دائم)
+Docker Volume (task-management-db-data) (لحفظ البيانات بشكل دائم)
 ```
 **الشرح من الأعلى للأسفل:**
 العميل يرسل الطلب إلى المنفذ `8080` (الوحيد المفتوح للعالم). يستلم `Nginx` الطلب ويحوله سرّاً إلى الـ `API` العامل على المنفذ `3000` (المعزول داخلياً). يقوم الـ `API` بمعالجة الطلب، ويتواصل مع `PostgreSQL` على المنفذ `5432` لجلب أو حفظ البيانات. وتقوم قاعدة البيانات بكتابة البيانات في `Volume` لضمان عدم ضياعها.
@@ -138,7 +138,7 @@ CMD ["npm", "start"]
 ---
 
 ## 10. Docker Network
-*   **ما هي؟** شبكة افتراضية اسمها `app-network` أنشأها Compose لربط الحاويات معاً.
+*   **ما هي؟** شبكة افتراضية اسمها `task-management-network` أنشأها Compose لربط الحاويات معاً.
 *   **كيف تتواصل؟** عبر أسمائها! الـ API يتصل بالقاعدة باستخدام الاسم `database` وليس `localhost`.
 *   لماذا ليس `localhost`؟ لأن `localhost` داخل حاوية API يعني "داخل حاوية الـ API نفسها"، بينما القاعدة تعيش في حاوية أخرى.
 
@@ -148,11 +148,11 @@ CMD ["npm", "start"]
 في ملف `nginx.conf` كتبنا:
 ```nginx
 upstream backend {
-    server api:3000;
+    server task-management-api:3000;
 }
 ```
 *   **ما هو؟** Nginx يعمل كـ "وكيل عكسي" (بوابة الاستقبال).
-*   **وظيفته:** يستلم الطلب من المستخدم على `8080`، ويرسله داخلياً إلى `api:3000`.
+*   **وظيفته:** يستلم الطلب من المستخدم على `8080`، ويرسله داخلياً إلى `task-management-api:3000`.
 *   **لماذا لم نكشف API؟** لعزل الـ API أمنياً، وللسماح لاحقاً بوجود أكثر من API خلف Nginx (Load Balancing) إن أردنا توسيع المشروع.
 
 ---
@@ -172,7 +172,7 @@ upstream backend {
 ## 13. Request Lifecycle (حياة الطلب)
 ماذا يحدث عند طلب `GET http://localhost:8080/api/tasks`؟
 1. **Client**: يرسل الطلب عبر المتصفح/Postman إلى المنفذ 8080.
-2. **Nginx**: يستقبل الطلب، يقرأ الإعدادات، يكتشف أنه يجب توجيهه إلى `api:3000`.
+2. **Nginx**: يستقبل الطلب، يقرأ الإعدادات، يكتشف أنه يجب توجيهه إلى `task-management-api:3000`.
 3. **API**: يستلم الطلب في Express، يقوم بتنفيذ أمر SQL (`SELECT * FROM tasks`).
 4. **PostgreSQL**: ينفذ الاستعلام، ويقرأ البيانات من القرص (Volume)، ويعيدها للـ API.
 5. **API**: يحول البيانات إلى صيغة `JSON` ويرسلها لـ Nginx.
@@ -188,8 +188,8 @@ upstream backend {
 
 ## 15. Docker Volume و Persistence (الاستمرارية)
 *   **Container Storage:** لو حفظنا البيانات داخل الحاوية مباشرة، فبمجرد حذف الحاوية تطير البيانات.
-*   **Docker Volume:** قرص تخزين منفصل يديره Docker. في مشروعنا اسمه `db-data` مربوط بـ `/var/lib/postgresql/data` داخل الحاوية.
-*   **كيف أثبتناه؟** أنشأنا مهمة (Task)، أوقفنا الحاوية `docker compose stop database`، ثم أعدنا تشغيلها، ووجدنا أن البيانات ما زالت موجودة.
+*   **Docker Volume:** قرص تخزين منفصل يديره Docker. في مشروعنا اسمه `task-management-db-data` مربوط بـ `/var/lib/postgresql/data` داخل الحاوية.
+*   **كيف أثبتناه؟** أنشأنا مهمة (Task)، أوقفنا الحاوية `docker compose stop task-management-db`، ثم أعدنا تشغيلها، ووجدنا أن البيانات ما زالت موجودة.
 
 ---
 
@@ -241,8 +241,8 @@ upstream backend {
 ---
 
 ## 21. ماذا يحدث عند تشغيل `docker compose up -d`؟
-1. ينشئ الشبكة `app-network`.
-2. ينشئ/يربط الـ Volume `db-data`.
+1. ينشئ الشبكة `task-management-network`.
+2. ينشئ/يربط الـ Volume `task-management-db-data`.
 3. يشغل `database` وينتظرها حتى تصبح `Healthy` (عبر الـ healthcheck).
 4. بعد أن تجهز، يشغل `api`.
 5. يشغل `nginx` ويربط المنافذ.
@@ -286,7 +286,7 @@ upstream backend {
 7. **كيف يتم ترتيب التشغيل؟** استخدمنا `depends_on` في Compose لضمان بدء القاعدة أولاً.
 
 ### أسئلة Database & Storage
-8. **كيف حفظتم البيانات من الضياع؟** باستخدام Docker Volumes (تحديداً `db-data`).
+8. **كيف حفظتم البيانات من الضياع؟** باستخدام Docker Volumes (تحديداً `task-management-db-data`).
 9. **ما اسم قاعدة البيانات المستخدمة؟** PostgreSQL (اسم القاعدة `taskdb`).
 10. **أين تُحفظ البيانات داخل الحاوية؟** في المسار `/var/lib/postgresql/data`.
 
@@ -294,7 +294,7 @@ upstream backend {
 11. **كيف يتواصل API مع Database؟** عبر شبكة Docker الداخلية واسم الحاوية (`database`).
 12. **لماذا لا نستخدم `localhost` لربط الحاويات؟** لأن `localhost` يعود للحاوية نفسها وليس للحاويات الأخرى.
 13. **ما هو المنفذ الخارجي للمشروع؟** 8080.
-14. **ما هي الشبكة المستخدمة في المشروع؟** شبكة من نوع `bridge` اسمها `app-network`.
+14. **ما هي الشبكة المستخدمة في المشروع؟** شبكة من نوع `bridge` اسمها `task-management-network`.
 
 ### أسئلة Security
 15. **لماذا أضفتم `USER node` في Dockerfile؟** لعدم تشغيل الكود بصلاحيات الرووت (Root) كإجراء أمني (Least Privilege).
@@ -334,7 +334,7 @@ upstream backend {
 2. **التقنيات**: Node.js للبرمجة، Postgres للبيانات، Docker للحاويات.
 3. **التصميم (Architecture)**: عزلنا الـ API والـ DB في شبكة داخلية. العميل يتواصل فقط مع Nginx على منفذ 8080.
 4. **الـ Dockerfile**: استخدمنا نسخة Alpine الخفيفة، ورتبنا الطبقات (Layers) للاستفادة من الكاش، وعينا `USER node` للحماية.
-5. **الاستمرارية (Persistence)**: لتجنب ضياع البيانات برمجنا Named Volume اسمه `db-data`.
+5. **الاستمرارية (Persistence)**: لتجنب ضياع البيانات برمجنا Named Volume اسمه `task-management-db-data`.
 6. **الاختبار والانهيار (Failure Modes)**: جربنا إيقاف الـ API وحصلنا على 502 من Nginx، وجربنا إيقاف الـ DB وحصلنا على 500، مما يثبت صحة الترابط ومعالجة الأخطاء.
 7. **الختام**: الكود محفوظ أمنياً في GitHub، والصورة جاهزة للسحب من Docker Hub باستخدام الـ Tags `v1.0.0` و `latest`.
 
@@ -344,8 +344,8 @@ upstream backend {
 1. **المنفذ الخارجي**: 8080
 2. **منفذ API الداخلي**: 3000
 3. **منفذ القاعدة الداخلي**: 5432
-4. **اسم شبكة Docker**: `app-network`
-5. **اسم مساحة التخزين**: `db-data`
+4. **اسم شبكة Docker**: `task-management-network`
+5. **اسم مساحة التخزين**: `task-management-db-data`
 6. **لغة / إطار العمل**: Node.js + Express
 7. **قاعدة البيانات**: PostgreSQL 15 Alpine
 8. **نقطة الدخول**: Nginx Alpine
@@ -355,7 +355,7 @@ upstream backend {
 12. **اسم المستخدم الأمني**: `node`
 13. **أمر التشغيل الكامل**: `docker compose up -d`
 14. **المسار الرئيسي**: `/api/tasks`
-15. **أمر اختبار الفشل (API Down)**: `docker compose stop api`
+15. **أمر اختبار الفشل (API Down)**: `docker compose stop task-management-api`
 16. **الخطأ عند سقوط API**: 502 Bad Gateway
 17. **الخطأ عند سقوط DB**: 500 Internal Server Error
 18. **الخطأ لطلب وهمي**: 404 Not Found
@@ -371,7 +371,7 @@ upstream backend {
 | Container | حاوية | بيئة معزولة يعمل فيها Nginx أو API أو Postgres |
 | Image | صورة | القالب الثابت الذي بنينا منه الـ API ورفعناه لـ Docker Hub |
 | Reverse Proxy | وكيل عكسي | خادم Nginx الذي يستقبل الطلبات ويوجهها سراً للـ API |
-| Volume | وحدة تخزين | القرص الافتراضي `db-data` الذي يحفظ مهامنا |
+| Volume | وحدة تخزين | القرص الافتراضي `task-management-db-data` الذي يحفظ مهامنا |
 | Persistence | استمرارية | بقاء المهام محفوظة حتى لو أعدنا تشغيل حاوية القاعدة |
 | Endpoint | نقطة نهاية | المسار أو الرابط مثل `/api/tasks` |
 | Repository | مستودع | المكان الذي حفظنا فيه الكود على GitHub أو الصور على Docker Hub |
@@ -393,3 +393,5 @@ upstream backend {
 * **UNVERIFIED / غير متحقق منه**:
   - أسماء أعضاء الفريق (غير مكتوبة في الملفات حالياً).
   - اختبارات آلية شاملة لـ POST, PUT, DELETE (تم اختبارها يدوياً ولكن ليس عبر سكربت مبرمج ضمن `test.js`).
+
+
